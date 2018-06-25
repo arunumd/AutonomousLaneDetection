@@ -103,6 +103,9 @@ int main(int argc, char *argv[]){
 	    if (frame.empty())
 	      break;
 
+	    //Calling matrix of same size and type as our frame
+	    cv::Mat cleanimage = cv::Mat::zeros(frame.size(), frame.type());
+
 	    //Undistortion of video frames
 	    void undistort(cv::Mat frame, cv::Mat cleanimage, cv::Mat cameraParameters, cv::Mat distCoeffs);
 
