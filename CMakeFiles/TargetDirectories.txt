@@ -1,3 +1,0 @@
-/home/arun/Desktop/DataSet/lane_detect/CMakeFiles/edit_cache.dir
-/home/arun/Desktop/DataSet/lane_detect/CMakeFiles/lane_detect.dir
-/home/arun/Desktop/DataSet/lane_detect/CMakeFiles/rebuild_cache.dir
