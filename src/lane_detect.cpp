@@ -17,113 +17,179 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include "opencv2/imgproc/imgproc_c.h"
 #include <boost/filesystem.hpp>
 
 namespace fs = boost::filesystem;
 using namespace cv;
 using namespace std;
 // Ref: https://stackoverflow.com/questions/3024197/what-does-int-argc-char-argv-mean
+
+//Hardcoding OpenCV minimum and maximum values for Hue, Saturation and Values slider
+const int max_possible_h = 180, max_possible_s = 255, max_possible_v = 255;
+int max_hue = max_possible_h, max_sat = max_possible_s, max_val = max_possible_v; //These are the maximum possible values
+int min_hue = 0, min_sat = 0, min_val = 0; //These are the minimum possible values which are mandatory
+const string color_adjust_window = "HSV Adjustment Window";
+
+/**********************************************************************
+ *                                                                    *
+ *      Defining our callback functions for HSV threshold trackbar    *
+ *                                                                    *
+ **********************************************************************/
+static void min_hue_f(int, void *)
+{
+    min_hue = min(max_hue-1, min_hue);
+    setTrackbarPos("Low H", color_adjust_window, min_hue);
+}
+static void max_hue_f(int, void *)
+{
+    max_hue = max(max_hue, min_hue+1);
+    setTrackbarPos("High H", color_adjust_window, max_hue);
+}
+static void min_sat_f(int, void *)
+{
+    min_sat = min(max_sat-1, min_sat);
+    setTrackbarPos("Low S", color_adjust_window, min_sat);
+}
+static void max_sat_f(int, void *)
+{
+    max_sat = max(max_sat, min_sat+1);
+    setTrackbarPos("High S", color_adjust_window, max_sat);
+}
+static void min_val_f(int, void *)
+{
+   min_val = min(max_val-1, min_val);
+   setTrackbarPos("Low V", color_adjust_window, min_val);
+}
+static void max_val_f(int, void *)
+{
+   max_val = max(max_val, min_val+1);
+   setTrackbarPos("High V", color_adjust_window, max_val);
+}
 int main(int argc, char *argv[]){
    /**************************************************************************
-	*                                                                        *
-	* Defining the Camera Parameters and Distortion coefficients obtained    *
-	* from the given text file                                               *
-	*                                                                        *
-	**************************************************************************/
+    *                                                                        *
+    * Defining the Camera Parameters and Distortion coefficients obtained    *
+    * from the given text file                                               *
+    *                                                                        *
+    **************************************************************************/
     string videolocation;
     string filestring;
-    cv::Mat cleanimage;
-	// Hard-coding the Camera Parameters below
-	cv::Mat cameraParameters = (cv::Mat_<double>(3,3) << 1.15422732e+03, 0.00000000e+00, 6.71627794e+02, 0.00000000e+00, 1.14818221e+03, 3.86046312e+02, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00);
-	// Hard-coding the distortion coefficients below
-	cv::Mat distCoeffs = (cv::Mat_<double>(1,8) << -2.42565104e-01, -4.77893070e-02, -1.31388084e-03, -8.79107779e-05, 2.20573263e-02, 0, 0, 0);
+    cv::Mat cleanimage, hsvimage, threshimage;
+    // Hard-coding the Camera Parameters below
+    cv::Mat cameraParameters = (cv::Mat_<double>(3,3) << 1.15422732e+03, 0.00000000e+00, 6.71627794e+02, 0.00000000e+00, 1.14818221e+03, 3.86046312e+02, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00);
+    // Hard-coding the distortion coefficients below
+    cv::Mat distCoeffs = (cv::Mat_<double>(1,8) << -2.42565104e-01, -4.77893070e-02, -1.31388084e-03, -8.79107779e-05, 2.20573263e-02, 0, 0, 0);
+    cv::Mat outputimages;
+    /**************************************************************************
+     *                                                                        *
+     * Code for opening video file based on full path of file from user input.*
+     * This code relies on boost::filesystem from the boost library for C++.  *
+     * More information about boost library can be found on this website :    *
+     * https://www.boost.org/doc/libs/1_67_0/libs/filesystem/doc/index.htm    *
+     *                                                                        *
+     **************************************************************************/
+    //Lines 93 to 127 are only for user input of video filepath and file verification
+    if (argc < 2){
+        std::cout<<"You have not given the input video filepath in command-line arguments\nPlease provide the video filepath below:\n";
+        std::getline (std::cin,videolocation);//User input prompt for file path
+        fs::path p(videolocation);//Boost filesystem object for path
+        filestring = p.string();
+        while(!is_regular_file(p)){ //Boost filesystem function for checking if there is a real file in the mentioned path
+            std::cout<<"You have not given a valid input video filepath in command-line arguments\nPlease provide the video filepath below:\n";
+            std::getline (std::cin,videolocation);//User input prompt for file path
+            fs::path p(videolocation);//Boost filesystem object for path
+            filestring = p.string();
+        }
+    }
+    else if (argc = 2){
+        fs::path p(argv[1]);
+        filestring = p.string();
+        while(!is_regular_file(p)){ //Boost filesystem function for checking if there is a real file in the mentioned path
+            std::cout<<"You have not given a valid input video filepath in command-line arguments\nPlease provide the video filepath below:\n";
+            std::getline (std::cin,videolocation);//User input prompt for file path
+            fs::path p(videolocation);//Boost filesystem object for path
+            filestring = p.string();
+        }
+    }
+    else{
+        std::cout<<"The input file path cannot contain any empty spaces\nPlease enter input filepath in the following manner:";
+        std::cout<<"Linux and Windows formats go here";
+        std::getline (std::cin,videolocation);//User input prompt for file path
+        fs::path p(videolocation);//Boost filesystem object for path
+        filestring = p.string();
+        while(!is_regular_file(p)){ //Boost filesystem function for checking if there is a real file in the mentioned path
+            std::cout<<"You have not given a valid input video filepath in command-line arguments\nPlease provide the video filepath below:\n";
+            std::getline (std::cin,videolocation);//User input prompt for file path
+            fs::path p(videolocation);//Boost filesystem object for path
+            filestring = p.string();
+        }
+    }
 
-	/**************************************************************************
-	 *                                                                        *
-	 * Code for opening video file based on full path of file from user input.*
-	 * This code relies on boost::filesystem from the boost library for C++.  *
-	 * More information about boost library can be found on this website :    *
-	 * https://www.boost.org/doc/libs/1_67_0/libs/filesystem/doc/index.htm    *
-	 *                                                                        *
-	 **************************************************************************/
-	//Lines 45 to 71 are only for user input of video filepath and file verification
-	if (argc < 2){
-		std::cout<<"You have not given the input video filepath in command-line arguments\nPlease provide the video filepath below:\n";
-		std::getline (std::cin,videolocation);//User input prompt for file path
-		fs::path p(videolocation);//Boost filesystem object for path
-		filestring = p.string();
-		while(!is_regular_file(p)){ //Boost filesystem function for checking if there is a real file in the mentioned path
-			std::cout<<"You have not given a valid input video filepath in command-line arguments\nPlease provide the video filepath below:\n";
-			std::getline (std::cin,videolocation);//User input prompt for file path
-			fs::path p(videolocation);//Boost filesystem object for path
-			filestring = p.string();
-		}
-	}
-	else if (argc = 2){
-		fs::path p(argv[1]);
-		filestring = p.string();
-		while(!is_regular_file(p)){ //Boost filesystem function for checking if there is a real file in the mentioned path
-			std::cout<<"You have not given a valid input video filepath in command-line arguments\nPlease provide the video filepath below:\n";
-			std::getline (std::cin,videolocation);//User input prompt for file path
-			fs::path p(videolocation);//Boost filesystem object for path
-			filestring = p.string();
-		}
-	}
-	else{
-		std::cout<<"The input file path cannot contain any empty spaces\nPlease enter input filepath in the following manner:";
-		std::cout<<"Linux and Windows formats go here";
-		std::getline (std::cin,videolocation);//User input prompt for file path
-		fs::path p(videolocation);//Boost filesystem object for path
-		filestring = p.string();
-		while(!is_regular_file(p)){ //Boost filesystem function for checking if there is a real file in the mentioned path
-			std::cout<<"You have not given a valid input video filepath in command-line arguments\nPlease provide the video filepath below:\n";
-			std::getline (std::cin,videolocation);//User input prompt for file path
-			fs::path p(videolocation);//Boost filesystem object for path
-			filestring = p.string();
-		}
-	}
 
-	//string filestring = videolocation.string();
-	//Moving on to frame extraction from input video file which was obtained from path above
-	VideoCapture videofile(filestring);
-	std::cout<<filestring;
+    //string filestring = videolocation.string();
+    //Moving on to frame extraction from input video file which was obtained from path above
+    VideoCapture videofile(filestring);
+    std::cout<<filestring;
 
-	if(!videofile.isOpened()){
-	    cout << "Error opening input video file" << endl;
-	    return -1;
-	  }
+    if(!videofile.isOpened()){
+        cout << "Error opening input video file" << endl;
+        return -1;
+      }
 
-	while(1){
+    namedWindow("Original Image",CV_WINDOW_AUTOSIZE);
+    namedWindow(color_adjust_window,CV_WINDOW_AUTOSIZE);
 
-	    Mat frame;
-	    // Capture frame-by-frame
-	    videofile >> frame;
+    while(1){
 
-	    // If the frame is empty, break immediately
-	    if (frame.empty())
-	      break;
+        Mat frame;
+        // Capture frame-by-frame
+        videofile >> frame;
 
-	    //Calling matrix of same size and type as our frame
-	    cv::Mat cleanimage = cv::Mat::zeros(frame.size(), frame.type());
+        // If the frame is empty, break immediately
+        if (frame.empty())
+          break;
 
-	    //Undistortion of video frames
-	    void undistort(cv::Mat frame, cv::Mat cleanimage, cv::Mat cameraParameters, cv::Mat distCoeffs);
+        //Calling matrix of same size and type as our frame
+        cv::Mat cleanimage = cv::Mat::zeros(frame.size(), frame.type());
 
-	    // Display the resulting frame
-	    imshow( "Frame", cleanimage );
+        //Undistortion of video frames
+        undistort(frame, cleanimage, cameraParameters, distCoeffs);
 
-	    // Press  ESC on keyboard to exit
-	    char c=(char)waitKey(25);
-	    if(c==27)
-	      break;
-	  }
 
-	// When everything done, release the video capture object
-	videofile.release();
+        //Concatenating multiple images
+        //cv::hconcat(frame,cleanimage,outputimages);
+        //imshow( "Concatenated Images", outputimages );
+        //Converting BGR image to HSV image by using OpenCV inbuilt function
+        cvtColor(cleanimage, hsvimage, COLOR_BGR2HSV);
 
-	// Closes all the frames
-	destroyAllWindows();
+        //Creating trackbars for HSV on the output frames for user control
+        createTrackbar("Hue - Low", color_adjust_window, &min_hue, max_possible_h, min_hue_f);
+        createTrackbar("Hue - High", color_adjust_window, &max_hue, max_possible_h, max_hue_f);
+        createTrackbar("Saturation - Low", color_adjust_window, &min_sat, max_possible_s, min_sat_f);
+        createTrackbar("Saturation - High", color_adjust_window, &max_sat, max_possible_s, max_sat_f);
+        createTrackbar("Value - Low", color_adjust_window, &min_val, max_possible_v, min_val_f);
+        createTrackbar("Value - High", color_adjust_window, &max_val, max_possible_v, max_val_f);
 
-	return 0;
+        //Applying thresholded color values to our input video frames
+        inRange(hsvimage, Scalar(min_hue, min_sat, min_val), Scalar(max_hue, max_sat, max_val), threshimage);
+
+        // Display the resulting frame
+        imshow("Original Image",hsvimage);
+        imshow(color_adjust_window, threshimage);
+
+        // Press  ESC on keyboard to exit
+        char c=(char)waitKey(25);
+        if(c==27)
+          break;
+      }
+
+    // When everything done, release the video capture object
+    videofile.release();
+
+    // Closes all the frames
+    destroyAllWindows();
+
+    return 0;
 }
 

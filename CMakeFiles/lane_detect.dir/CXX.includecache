@@ -31,6 +31,8 @@ opencv2/highgui/highgui.hpp
 -
 opencv2/imgproc/imgproc.hpp
 -
+opencv2/imgproc/imgproc_c.h
+/home/arun/Desktop/DataSet/lane_detect/src/opencv2/imgproc/imgproc_c.h
 boost/filesystem.hpp
 -
 
