@@ -6,6 +6,10 @@
 *.exe
 *.o
 *.so
+CMakeCache.txt
+Makefile
+lane_detect
+*.cmake
 
 # Packages #
 ############
