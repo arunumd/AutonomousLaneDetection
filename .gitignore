@@ -6,9 +6,9 @@
 *.exe
 *.o
 *.so
-CMakeCache.txt
-Makefile
-lane_detect
+/home/arun/Desktop/DataSet/lane_detect/CMakeCache.txt
+/home/arun/Desktop/DataSet/lane_detect/Makefile
+/home/arun/Desktop/DataSet/lane_detect/lane_detect
 *.cmake
 
 # Packages #
