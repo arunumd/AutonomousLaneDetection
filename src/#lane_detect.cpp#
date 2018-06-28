@@ -36,7 +36,6 @@ const string color_adjust_window = "HSV Adjustment Window";
  *      Defining our callback functions for HSV threshold trackbar    *
  *                                                                    *
  **********************************************************************/
-/* Trackbar functions Deactivated since we are not using interactive thresholding but hardcoding thresholds for yellow and white lanes
 static void min_hue_f(int, void *)
 {
     min_hue = min(max_hue-1, min_hue);
@@ -66,7 +65,7 @@ static void max_val_f(int, void *)
 {
    max_val = max(max_val, min_val+1);
    setTrackbarPos("High V", color_adjust_window, max_val);
-}*/
+}
 int main(int argc, char *argv[]){
    /**************************************************************************
     *                                                                        *
@@ -138,9 +137,9 @@ int main(int argc, char *argv[]){
         return -1;
       }
 
-    namedWindow("Original Image",CV_WINDOW_AUTOSIZE);
-    //resizeWindow("Original Image",500,250);
-    //namedWindow(color_adjust_window,CV_WINDOW_AUTOSIZE);
+    namedWindow("Original Image",// CV_WINDOW_AUTOSIZE
+		);
+    namedWindow(color_adjust_window,CV_WINDOW_AUTOSIZE);
 
     while(1){
 
@@ -166,63 +165,22 @@ int main(int argc, char *argv[]){
         cvtColor(cleanimage, hsvimage, COLOR_BGR2HSV);
 
         //Creating trackbars for HSV on the output frames for user control
-        /* Interactive trackbar to set min and max values for HS and V below
         createTrackbar("Hue - Low", color_adjust_window, &min_hue, max_possible_h, min_hue_f);
         createTrackbar("Hue - High", color_adjust_window, &max_hue, max_possible_h, max_hue_f);
         createTrackbar("Saturation - Low", color_adjust_window, &min_sat, max_possible_s, min_sat_f);
         createTrackbar("Saturation - High", color_adjust_window, &max_sat, max_possible_s, max_sat_f);
         createTrackbar("Value - Low", color_adjust_window, &min_val, max_possible_v, min_val_f);
         createTrackbar("Value - High", color_adjust_window, &max_val, max_possible_v, max_val_f);
-        */
 
-        /****************************************
-         *                                      *
-         *        Detection of Yellow lane      *
-         *                                      *
-         ****************************************/
-
-        // Creating a HSV color threshold mask for yellow lane
-        cv::Mat yellow_mask /*Mask for yellow color*/, yellow_lane /*Yellow lane detected after bitwise_and*/;
-        cv::Scalar yellow_min = cv::Scalar(18, 102, 204); //Minimum HSV range for yellow lane
-        cv::Scalar yellow_max = cv::Scalar(25, 255, 255); //Maximum HSV range for yellow lane
-        cv::inRange(hsvimage, yellow_min, yellow_max, yellow_mask); // Masking yellow color on the HSV image
-        cv::bitwise_and(hsvimage, hsvimage, yellow_lane, yellow_mask); // Detection of yellow lane on the HSV image
-
-        /****************************************
-        *                                       *
-        *        Detection of White lane        *
-        *                                       *
-        *****************************************/
-
-        // Creating a HSV color threshold mask for white lane
-        cv::Scalar white_mask /*Mask for white color*/, white_lane /*White lane detected after bitwise_and*/;
-        cv::Scalar white_min = cv::Scalar(0, 0, 204);     //Minimum HSV range for white lane
-        cv::Scalar white_max = cv::Scalar(255, 51, 255);  //Maximum HSV range for white lane
-        cv::inRange(hsvimage, white_min, white_max, white_mask); // Masking white color on the HSV image
-        cv::bitwise_and(hsvimage, hsvimage, white_lane, white_mask); // Detection of white lane on the HSV image
-
-        // Creating a HSV color threshold mask for white lane
         //Applying thresholded color values to our input video frames
-        //inRange(hsvimage, Scalar(min_hue, min_sat, min_val), Scalar(max_hue, max_sat, max_val), threshimage);
-
-        /*************************************************
-         *                                               *
-         * Combining White and Yellow lanes into one mask*
-         *                                               *
-         *************************************************/
-        cv::Mat yellow_and_white; //Matrix for yellow and white lanes detection
-        yellow_and_white = yellow_mask + white_mask; //Combining both the masks together
+        inRange(hsvimage, Scalar(min_hue, min_sat, min_val), Scalar(max_hue, max_sat, max_val), threshimage);
 
         // Display the resulting frame
         imshow("Original Image",hsvimage);
-        imshow("White Lanes", white_mask);
-        imshow("Tellow Lane", yellow_mask);
-        imshow("All lanes", yellow_and_white);
-
-        //imshow(color_adjust_window, threshimage);
+        imshow(color_adjust_window, threshimage);
 
         // Press  ESC on keyboard to exit
-        char c=(char)waitKey(0);
+        char c=(char)waitKey(25);
         if(c==27)
           break;
       }
