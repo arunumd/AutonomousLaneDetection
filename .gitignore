@@ -20,6 +20,10 @@
 *.tar
 *.zip
 
+# Folders to Ignore #
+#####################
+/CMakeFiles
+
 # Logs and databases #
 ######################
 *.log
