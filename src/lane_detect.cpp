@@ -182,11 +182,13 @@ int main(int argc, char *argv[]){
          ****************************************/
 
         // Creating a HSV color threshold mask for yellow lane
-        cv::Mat yellow_mask /*Mask for yellow color*/, yellow_lane /*Yellow lane detected after bitwise_and*/;
+        cv::Mat yellow_mask/*Mask for yellow color*/, yellow_lane/*Yellow lane detected after bitwise_and*/;
+        yellow_mask = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
+        yellow_lane = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
         cv::Scalar yellow_min = cv::Scalar(18, 102, 204); //Minimum HSV range for yellow lane
         cv::Scalar yellow_max = cv::Scalar(25, 255, 255); //Maximum HSV range for yellow lane
         cv::inRange(hsvimage, yellow_min, yellow_max, yellow_mask); // Masking yellow color on the HSV image
-        cv::bitwise_and(hsvimage, hsvimage, yellow_lane, yellow_mask); // Detection of yellow lane on the HSV image
+        //cv::bitwise_and(hsvimage, hsvimage, yellow_mask, yellow_lane); // Detection of yellow lane on the HSV image
 
         /****************************************
         *                                       *
@@ -195,12 +197,14 @@ int main(int argc, char *argv[]){
         *****************************************/
 
         // Creating a HSV color threshold mask for white lane
-        cv::Scalar white_mask /*Mask for white color*/, white_lane /*White lane detected after bitwise_and*/;
+        cv::Mat white_mask /*Mask for white color*/, white_lane /*White lane detected after bitwise_and*/;
+        white_mask = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
+        white_lane = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
         cv::Scalar white_min = cv::Scalar(0, 0, 204);     //Minimum HSV range for white lane
         cv::Scalar white_max = cv::Scalar(255, 51, 255);  //Maximum HSV range for white lane
         cv::inRange(hsvimage, white_min, white_max, white_mask); // Masking white color on the HSV image
-        cv::bitwise_and(hsvimage, hsvimage, white_lane, white_mask); // Detection of white lane on the HSV image
-
+        //cv::bitwise_and(hsvimage, hsvimage, white_mask, white_lane); // Detection of white lane on the HSV image
+        cv::Mat mask = white_mask | yellow_mask;
         // Creating a HSV color threshold mask for white lane
         //Applying thresholded color values to our input video frames
         //inRange(hsvimage, Scalar(min_hue, min_sat, min_val), Scalar(max_hue, max_sat, max_val), threshimage);
@@ -210,14 +214,14 @@ int main(int argc, char *argv[]){
          * Combining White and Yellow lanes into one mask*
          *                                               *
          *************************************************/
-        cv::Mat yellow_and_white; //Matrix for yellow and white lanes detection
-        yellow_and_white = yellow_mask + white_mask; //Combining both the masks together
+        //cv::Mat yellow_and_white; //Matrix for yellow and white lanes detection
+        //yellow_and_white = yellow_mask + white_mask; //Combining both the masks together
 
         // Display the resulting frame
         imshow("Original Image",hsvimage);
-        imshow("White Lanes", white_mask);
-        imshow("Tellow Lane", yellow_mask);
-        imshow("All lanes", yellow_and_white);
+        imshow("White & Yellow - Thresholded Lanes", mask);
+        //imshow("Tellow Lane", yellow_mask);
+        //imshow("All lanes", yellow_and_white);
 
         //imshow(color_adjust_window, threshimage);
 

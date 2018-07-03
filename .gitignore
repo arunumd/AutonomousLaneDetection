@@ -39,3 +39,13 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+
+# CMake and Make generated files #
+##################################
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+lane_detect
+lane_detect.o
+
