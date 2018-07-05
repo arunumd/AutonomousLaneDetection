@@ -67,6 +67,19 @@ static void max_val_f(int, void *)
    max_val = max(max_val, min_val+1);
    setTrackbarPos("High V", color_adjust_window, max_val);
 }*/
+
+void mouse_click(int event, int x, int y, int flags, void* userdata)
+{
+    if  ( event == EVENT_LBUTTONDOWN )
+    {
+        cout << "Left button of the mouse is clicked - position (" << x << ", " << y << ")" << endl;
+    }
+    else if  ( event == EVENT_RBUTTONDOWN )
+    {
+        cout << "Right button of the mouse is clicked - position (" << x << ", " << y << ")" << endl;
+    }
+}
+
 int main(int argc, char *argv[]){
    /**************************************************************************
     *                                                                        *
@@ -218,8 +231,36 @@ int main(int argc, char *argv[]){
         //yellow_and_white = yellow_mask + white_mask; //Combining both the masks together
 
         // Display the resulting frame
-        imshow("Original Image",hsvimage);
+        //imshow("Original Image",hsvimage);
         imshow("White & Yellow - Thresholded Lanes", mask);
+        //setMouseCallback("White & Yellow - Thresholded Lanes", mouse_click, NULL);
+
+        //Mat dummy(2, 4, CV_32FC1 );
+
+        Point2f inputpts[4], outputpts[4];
+
+        //dummy = Mat::zeros(mask.rows, mask.cols, mask.type());
+
+        //Hardcoding four vertices for region of interest with yellow and white lanes in Source image
+        inputpts[0] = Point2f(522, 472); //Top-left
+        inputpts[1] = Point2f(795, 472); //Top-Right
+        inputpts[2] = Point2f(251, 684); //Bottom-Left
+        inputpts[3] = Point2f(1190, 684); //Bottom-Right
+
+        //Hardcoding four vertices for region of interest with yellow and white lanes in Wrapped image
+        outputpts[0] = Point2f(251, 472); //Top-left
+        outputpts[1] = Point2f(1190, 472); //Top-Right
+        outputpts[2] = Point2f(251, 684); //Bottom-Left
+        outputpts[3] = Point2f(1190, 684); //Bottom-Right
+
+        Mat dummy = getPerspectiveTransform(inputpts, outputpts);
+
+        Mat output;
+
+        warpPerspective(mask, output, dummy, output.size(), INTER_LINEAR, BORDER_CONSTANT);
+
+        imshow("Wrapped Image", output);
+
         //imshow("Tellow Lane", yellow_mask);
         //imshow("All lanes", yellow_and_white);
 
