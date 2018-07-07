@@ -171,12 +171,14 @@ int main(int argc, char *argv[]){
         //Undistortion of video frames
         undistort(frame, cleanimage, cameraParameters, distCoeffs);
 
+        Mat blurredimage = cleanimage.clone();
+        GaussianBlur(cleanimage, blurredimage,Size(7,7),0,0);//Applying a Gaussian blur to reduce the noise
 
         //Concatenating multiple images
         //cv::hconcat(frame,cleanimage,outputimages);
         //imshow( "Concatenated Images", outputimages );
         //Converting BGR image to HSV image by using OpenCV inbuilt function
-        cvtColor(cleanimage, hsvimage, COLOR_BGR2HSV);
+        cvtColor(blurredimage, hsvimage, COLOR_BGR2HSV);
 
         //Creating trackbars for HSV on the output frames for user control
         /* Interactive trackbar to set min and max values for HS and V below
@@ -217,7 +219,7 @@ int main(int argc, char *argv[]){
         cv::Scalar white_max = cv::Scalar(255, 51, 255);  //Maximum HSV range for white lane
         cv::inRange(hsvimage, white_min, white_max, white_mask); // Masking white color on the HSV image
         //cv::bitwise_and(hsvimage, hsvimage, white_mask, white_lane); // Detection of white lane on the HSV image
-        cv::Mat mask = white_mask | yellow_mask;
+
         // Creating a HSV color threshold mask for white lane
         //Applying thresholded color values to our input video frames
         //inRange(hsvimage, Scalar(min_hue, min_sat, min_val), Scalar(max_hue, max_sat, max_val), threshimage);
@@ -232,15 +234,46 @@ int main(int argc, char *argv[]){
 
         // Display the resulting frame
         //imshow("Original Image",hsvimage);
+        cv::Mat mask = white_mask | yellow_mask;
+        cv::Mat colorlines;
+        cvtColor(mask, colorlines, COLOR_GRAY2BGR);
         imshow("White & Yellow - Thresholded Lanes", mask);
+
+        /**************************************************
+         *      Edge detection for lanes using Canny      *
+         **************************************************/
+        cv::Mat edges, edge_map;
+        Canny(mask, edges, 10, 20, 3);
+
+        edge_map = Scalar::all(0);
+
+        hsvimage.copyTo(edge_map, edges);
+
+        imshow("Edges", edge_map);
+        //Creating a matrix of zeros like hsvimage
+
+        cv::Mat empty(hsvimage.rows, hsvimage.cols, CV_8U, Scalar(0));
+
+        vector<Point> pts;
+        pts.push_back(Point(522, 472));    //top-left
+        pts.push_back(Point(795, 472));    //top-right
+        pts.push_back(Point(1190, 684));   //bottom-right
+        pts.push_back(Point(251, 684));    //bottom-left
+
+
+        fillConvexPoly(empty, pts, 255);
+
+        imshow("Polygonal region selected", empty);
         //setMouseCallback("White & Yellow - Thresholded Lanes", mouse_click, NULL);
 
         //Mat dummy(2, 4, CV_32FC1 );
 
-        Point2f inputpts[4], outputpts[4];
+        //Point2f inputpts[4], outputpts[4];
 
         //dummy = Mat::zeros(mask.rows, mask.cols, mask.type());
 
+
+        /*
         //Hardcoding four vertices for region of interest with yellow and white lanes in Source image
         inputpts[0] = Point2f(522, 472); //Top-left
         inputpts[1] = Point2f(795, 472); //Top-Right
@@ -253,19 +286,42 @@ int main(int argc, char *argv[]){
         outputpts[2] = Point2f(251, 684); //Bottom-Left
         outputpts[3] = Point2f(1190, 684); //Bottom-Right
 
-        Mat dummy = getPerspectiveTransform(inputpts, outputpts);
+        */
+        //Mat dummy = getPerspectiveTransform(inputpts, outputpts);
 
-        Mat output;
+        //Mat output;
 
-        warpPerspective(mask, output, dummy, output.size(), INTER_LINEAR, BORDER_CONSTANT);
+        //warpPerspective(mask, output, dummy, output.size(), INTER_LINEAR, BORDER_CONSTANT);
 
-        imshow("Wrapped Image", output);
+        //imshow("Wrapped Image", output);
 
-        //imshow("Tellow Lane", yellow_mask);
+        //imshow("Yellow Lane", yellow_mask);
         //imshow("All lanes", yellow_and_white);
 
         //imshow(color_adjust_window, threshimage);
 
+        /**********************************************************
+         *                                                        *
+         *              Hough Lines detection steps               *
+         *                                                        *
+         **********************************************************/
+        vector<Vec2f> lines; //Hough lines
+        HoughLines(mask, lines, 1, CV_PI/180, 150, 0, 0);
+        //Drawing lines
+        for( size_t i = 0; i < lines.size(); i++ )
+        {
+            float rho = lines[i][0], theta = lines[i][1];
+            Point pt1, pt2;
+            double a = cos(theta), b = sin(theta);
+            double x0 = a*rho, y0 = b*rho;
+            pt1.x = cvRound(x0 + 1000*(-b));
+            pt1.y = cvRound(y0 + 1000*(a));
+            pt2.x = cvRound(x0 - 1000*(-b));
+            pt2.y = cvRound(y0 - 1000*(a));
+            line( colorlines, pt1, pt2, Scalar(0,0,255), 3, LINE_AA);
+        }
+
+        //imshow("Hough Lines", colorlines);
         // Press  ESC on keyboard to exit
         char c=(char)waitKey(0);
         if(c==27)
