@@ -151,7 +151,7 @@ int main(int argc, char *argv[]){
         return -1;
       }
 
-    namedWindow("Original Image",CV_WINDOW_AUTOSIZE);
+    //namedWindow("Original Image",CV_WINDOW_AUTOSIZE);
     //resizeWindow("Original Image",500,250);
     //namedWindow(color_adjust_window,CV_WINDOW_AUTOSIZE);
 
@@ -197,9 +197,7 @@ int main(int argc, char *argv[]){
          ****************************************/
 
         // Creating a HSV color threshold mask for yellow lane
-        cv::Mat yellow_mask/*Mask for yellow color*/, yellow_lane/*Yellow lane detected after bitwise_and*/;
-        yellow_mask = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
-        yellow_lane = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
+        cv::Mat yellow_mask = cv::Mat::zeros(hsvimage.size(), CV_8U);
         cv::Scalar yellow_min = cv::Scalar(18, 102, 204); //Minimum HSV range for yellow lane
         cv::Scalar yellow_max = cv::Scalar(25, 255, 255); //Maximum HSV range for yellow lane
         cv::inRange(hsvimage, yellow_min, yellow_max, yellow_mask); // Masking yellow color on the HSV image
@@ -212,13 +210,11 @@ int main(int argc, char *argv[]){
         *****************************************/
 
         // Creating a HSV color threshold mask for white lane
-        cv::Mat white_mask /*Mask for white color*/, white_lane /*White lane detected after bitwise_and*/;
-        white_mask = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
-        white_lane = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
+        cv::Mat white_mask = cv::Mat::zeros(hsvimage.size(), CV_8U);
         cv::Scalar white_min = cv::Scalar(0, 0, 204);     //Minimum HSV range for white lane
         cv::Scalar white_max = cv::Scalar(255, 51, 255);  //Maximum HSV range for white lane
         cv::inRange(hsvimage, white_min, white_max, white_mask); // Masking white color on the HSV image
-        //cv::bitwise_and(hsvimage, hsvimage, white_mask, white_lane); // Detection of white lane on the HSV image
+        //imshow("white", white_mask);
 
         // Creating a HSV color threshold mask for white lane
         //Applying thresholded color values to our input video frames
@@ -234,36 +230,44 @@ int main(int argc, char *argv[]){
 
         // Display the resulting frame
         //imshow("Original Image",hsvimage);
-        cv::Mat mask = white_mask | yellow_mask;
-        cv::Mat colorlines;
-        cvtColor(mask, colorlines, COLOR_GRAY2BGR);
-        imshow("White & Yellow - Thresholded Lanes", mask);
+        cv::Mat yellow_and_white = cv::Mat::zeros(hsvimage.size(), CV_8U);
+        cv::bitwise_or(white_mask, yellow_mask, yellow_and_white);
+        //cv::Mat mask = white_mask | yellow_mask;
+        //imshow("White & Yellow - Thresholded Lanes", yellow_and_white);
 
         /**************************************************
          *      Edge detection for lanes using Canny      *
          **************************************************/
-        cv::Mat edges, edge_map;
-        Canny(mask, edges, 10, 20, 3);
+        cv::Mat bwedges = cv::Mat::zeros(yellow_and_white.size(), yellow_and_white.type());
+        cv::Mat hsvedges = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
 
-        edge_map = Scalar::all(0);
+        Mat cloneimg;
+        Canny(yellow_and_white, bwedges, 10, 20, 3);
 
-        hsvimage.copyTo(edge_map, edges);
+        hsvedges = Scalar::all(0);
+        cloneimg = hsvimage.clone();
 
-        imshow("Edges", edge_map);
+        hsvimage.copyTo(hsvedges, bwedges); //contents.copyTo(destination, template)
+        //hsvimage.copyTo(cloneimg);
+
+        //imshow("Edges", hsvedges);
         //Creating a matrix of zeros like hsvimage
 
-        cv::Mat empty(hsvimage.rows, hsvimage.cols, CV_8U, Scalar(0));
-
+        cv::Mat roi_template(hsvimage.rows, hsvimage.cols, CV_8U, Scalar(0));
+        cv::Mat hsv_roi(hsvimage.rows, hsvimage.cols, CV_8U, Scalar(0));
         vector<Point> pts;
-        pts.push_back(Point(522, 472));    //top-left
-        pts.push_back(Point(795, 472));    //top-right
-        pts.push_back(Point(1190, 684));   //bottom-right
-        pts.push_back(Point(251, 684));    //bottom-left
+        pts.push_back(Point(0, 450));    //top-left
+        pts.push_back(Point(1210, 450));    //top-right
+        pts.push_back(Point(1210, 684));   //bottom-right
+        pts.push_back(Point(0, 684));    //bottom-left
 
+        fillConvexPoly(roi_template, pts, cv::Scalar(1));
 
-        fillConvexPoly(empty, pts, 255);
+        //edge_map.copyTo(hsvimage, empty);
+        hsvedges.copyTo(hsv_roi,roi_template);
 
-        imshow("Polygonal region selected", empty);
+        //imshow("Polygonal region selected", empty1);
+        //imshow("ROI",hsv_roi);
         //setMouseCallback("White & Yellow - Thresholded Lanes", mouse_click, NULL);
 
         //Mat dummy(2, 4, CV_32FC1 );
@@ -306,7 +310,7 @@ int main(int argc, char *argv[]){
          *                                                        *
          **********************************************************/
         vector<Vec2f> lines; //Hough lines
-        HoughLines(mask, lines, 1, CV_PI/180, 150, 0, 0);
+        HoughLines(bwedges, lines, 1, CV_PI/45, 70, 0, 0);
         //Drawing lines
         for( size_t i = 0; i < lines.size(); i++ )
         {
@@ -318,10 +322,11 @@ int main(int argc, char *argv[]){
             pt1.y = cvRound(y0 + 1000*(a));
             pt2.x = cvRound(x0 - 1000*(-b));
             pt2.y = cvRound(y0 - 1000*(a));
-            line( colorlines, pt1, pt2, Scalar(0,0,255), 3, LINE_AA);
+            line(hsv_roi, pt1, pt2, Scalar(0,0,255), 3, LINE_AA);
         }
 
-        //imshow("Hough Lines", colorlines);
+
+        imshow("Hough Lines", hsv_roi);
         // Press  ESC on keyboard to exit
         char c=(char)waitKey(0);
         if(c==27)
