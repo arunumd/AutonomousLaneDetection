@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <utility>
 #include "lane_detect.hpp"
 #include "opencv2/opencv.hpp"
 #include <opencv2/core/core.hpp>
@@ -172,7 +173,8 @@ int main(int argc, char *argv[]){
         undistort(frame, cleanimage, cameraParameters, distCoeffs);
 
         Mat blurredimage = cleanimage.clone();
-        GaussianBlur(cleanimage, blurredimage,Size(7,7),0,0);//Applying a Gaussian blur to reduce the noise
+        //Mat hsvimage = cleanimage.clone();
+        GaussianBlur(cleanimage, blurredimage,Size(5,5),0,0);//Applying a Gaussian blur to reduce the noise
 
         //Concatenating multiple images
         //cv::hconcat(frame,cleanimage,outputimages);
@@ -233,24 +235,25 @@ int main(int argc, char *argv[]){
         cv::Mat yellow_and_white = cv::Mat::zeros(hsvimage.size(), CV_8U);
         cv::bitwise_or(white_mask, yellow_mask, yellow_and_white);
         //cv::Mat mask = white_mask | yellow_mask;
-        //imshow("White & Yellow - Thresholded Lanes", yellow_and_white);
+        imshow("White & Yellow - Thresholded Lanes", frame);
 
         /**************************************************
          *      Edge detection for lanes using Canny      *
          **************************************************/
-        cv::Mat bwedges = cv::Mat::zeros(yellow_and_white.size(), yellow_and_white.type());
+        cv::Mat bwedges = cv::Mat::zeros(yellow_and_white.size(), CV_8U);
+        cv::Mat bw_roi = bwedges.clone();
         cv::Mat hsvedges = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
 
         Mat cloneimg;
-        Canny(yellow_and_white, bwedges, 10, 20, 3);
+        Canny(yellow_and_white, bwedges, 70, 210, 3);
 
         hsvedges = Scalar::all(0);
         cloneimg = hsvimage.clone();
 
         hsvimage.copyTo(hsvedges, bwedges); //contents.copyTo(destination, template)
-        //hsvimage.copyTo(cloneimg);
+        hsvimage.copyTo(cloneimg);
 
-        //imshow("Edges", hsvedges);
+        imshow("Edges", bwedges);
         //Creating a matrix of zeros like hsvimage
 
         cv::Mat roi_template(hsvimage.rows, hsvimage.cols, CV_8U, Scalar(0));
@@ -266,9 +269,12 @@ int main(int argc, char *argv[]){
         //edge_map.copyTo(hsvimage, empty);
         hsvedges.copyTo(hsv_roi,roi_template);
 
+        bwedges.copyTo(bw_roi,roi_template);
+
+
         //imshow("Polygonal region selected", empty1);
         //imshow("ROI",hsv_roi);
-        //setMouseCallback("White & Yellow - Thresholded Lanes", mouse_click, NULL);
+        setMouseCallback("White & Yellow - Thresholded Lanes", mouse_click, NULL);
 
         //Mat dummy(2, 4, CV_32FC1 );
 
@@ -310,23 +316,69 @@ int main(int argc, char *argv[]){
          *                                                        *
          **********************************************************/
         vector<Vec2f> lines; //Hough lines
-        HoughLines(bwedges, lines, 1, CV_PI/45, 70, 0, 0);
+        HoughLines(bw_roi, lines, 1, CV_PI/360, 70, 0, 0);
+
         //Drawing lines
+        std::vector<Point2d> positive_left; //Positive slopes go here
+        positive_left.clear();
+        std::vector<Point2d> positive_right; //Positive slopes go here
+        positive_right.clear();
+        std::vector<Point2d> negative_left; //Negative slopes go here
+        negative_left.clear();
+        std::vector<Point2d> negative_right; //Negative slopes go here
+        negative_right.clear();
+
         for( size_t i = 0; i < lines.size(); i++ )
         {
             float rho = lines[i][0], theta = lines[i][1];
-            Point pt1, pt2;
+            Point2d pt1, pt2;
+            double m;
             double a = cos(theta), b = sin(theta);
             double x0 = a*rho, y0 = b*rho;
             pt1.x = cvRound(x0 + 1000*(-b));
             pt1.y = cvRound(y0 + 1000*(a));
             pt2.x = cvRound(x0 - 1000*(-b));
             pt2.y = cvRound(y0 - 1000*(a));
-            line(hsv_roi, pt1, pt2, Scalar(0,0,255), 3, LINE_AA);
+            m = ((pt2.y-pt1.y)/(pt2.x-pt1.x)); //Slope calculation
+            std::cout<<"Actual m is :"<<m<<std::endl;
+            if ((m > -0.24) && (m < 0.02)){
+                std::cout<<"m is in range -0.24 to +0.02"<<std::endl;
+                continue;
+            }
+            //For positive slopes, append to positive vector
+            else if (m > 0){
+                std::cout<<"m is positive"<<std::endl;
+                positive_left.push_back(pt1);
+                positive_right.push_back(pt2);
+            }
+            //For negative slopes, append to negative vector
+            else if (m < 0){
+                std::cout<<"m is negative"<<std::endl;
+                negative_left.push_back(pt1);
+                negative_right.push_back(pt2);
+            }
+        }
+
+        //Draw hough lines for left lane
+        for (int i = 0; i < positive_left.size(); i++){
+            line(frame, positive_right[i], positive_left[i], Scalar(0,0,255), 3, LINE_AA);
+        }
+
+        //Draw hough lines for right lane
+        for (int i = 0; i < negative_left.size(); i++){
+            line(frame, negative_right[i], negative_left[i], Scalar(0,0,255), 3, LINE_AA);
         }
 
 
-        imshow("Hough Lines", hsv_roi);
+        /*
+         * if((((pt2.y-pt1.y)/(pt2.x-pt1.x)) < 0.02) && (((pt2.y-pt1.y)/(pt2.x-pt1.x)) > -0.24))
+            {}
+            else if ((((pt2.y-pt1.y)/(pt2.x-pt1.x)) < 0) && (((pt2.y-pt1.y)/(pt2.x-pt1.x)) > 0)){
+                line(hsv_roi, pt1, pt2, Scalar(0,0,255), 3, LINE_AA);
+            }
+         */
+
+        imshow("Hough Lines", frame);
         // Press  ESC on keyboard to exit
         char c=(char)waitKey(0);
         if(c==27)
