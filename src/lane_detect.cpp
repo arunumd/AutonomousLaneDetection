@@ -316,7 +316,7 @@ int main(int argc, char *argv[]){
          *                                                        *
          **********************************************************/
         vector<Vec2f> lines; //Hough lines
-        HoughLines(bw_roi, lines, 1, CV_PI/360, 70, 0, 0);
+        HoughLines(bw_roi, lines, 1, CV_PI/180, 70, 0, 0);
 
         //Drawing lines
         std::vector<Point2d> positive_left; //Positive slopes go here
@@ -335,10 +335,10 @@ int main(int argc, char *argv[]){
             double m;
             double a = cos(theta), b = sin(theta);
             double x0 = a*rho, y0 = b*rho;
-            pt1.x = cvRound(x0 + 1000*(-b));
-            pt1.y = cvRound(y0 + 1000*(a));
-            pt2.x = cvRound(x0 - 1000*(-b));
-            pt2.y = cvRound(y0 - 1000*(a));
+            pt1.x = cvRound(x0 + 200*(-b));
+            pt1.y = cvRound(y0 + 200*(a));
+            pt2.x = cvRound(x0 - 200*(-b));
+            pt2.y = cvRound(y0 - 200*(a));
             m = ((pt2.y-pt1.y)/(pt2.x-pt1.x)); //Slope calculation
             std::cout<<"Actual m is :"<<m<<std::endl;
             if ((m > -0.24) && (m < 0.02)){
@@ -346,28 +346,34 @@ int main(int argc, char *argv[]){
                 continue;
             }
             //For positive slopes, append to positive vector
-            else if (m > 0){
+            /*else if (m > 0){ //The positive slopes are always right lanes
                 std::cout<<"m is positive"<<std::endl;
                 positive_left.push_back(pt1);
                 positive_right.push_back(pt2);
+
             }
             //For negative slopes, append to negative vector
-            else if (m < 0){
+            else if (m < 0){ //The negative slopes are always left lanes
                 std::cout<<"m is negative"<<std::endl;
                 negative_left.push_back(pt1);
-                negative_right.push_back(pt2);
+                negative_right.push_back(pt2);*/
+            else{
+                line(frame, pt1, pt2, Scalar(0,0,255), 3, LINE_AA);
             }
-        }
+            }
+        //}
 
+        //Point2d pt1_left, pt2_left;
         //Draw hough lines for left lane
-        for (int i = 0; i < positive_left.size(); i++){
+        /*for (int i = 0; i < positive_left.size(); i++){
+
             line(frame, positive_right[i], positive_left[i], Scalar(0,0,255), 3, LINE_AA);
         }
 
         //Draw hough lines for right lane
         for (int i = 0; i < negative_left.size(); i++){
             line(frame, negative_right[i], negative_left[i], Scalar(0,0,255), 3, LINE_AA);
-        }
+        }*/
 
 
         /*
