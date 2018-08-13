@@ -252,6 +252,8 @@ int main(int argc, char *argv[]){
 
         hsvimage.copyTo(hsvedges, bwedges); //contents.copyTo(destination, template)
         hsvimage.copyTo(cloneimg);
+        namedWindow("Edges",1);
+        setMouseCallback("Edges",mouse_click,NULL);
 
         imshow("Edges", bwedges);
         //Creating a matrix of zeros like hsvimage
@@ -316,7 +318,7 @@ int main(int argc, char *argv[]){
          *                                                        *
          **********************************************************/
         vector<Vec2f> lines; //Hough lines
-        HoughLines(bw_roi, lines, 1, CV_PI/180, 70, 0, 0);
+        HoughLines(bw_roi, lines, 1, CV_PI/180, 24, 0, 0);
 
         //Drawing lines
         std::vector<Point2d> positive_left; //Positive slopes go here
@@ -328,6 +330,24 @@ int main(int argc, char *argv[]){
         std::vector<Point2d> negative_right; //Negative slopes go here
         negative_right.clear();
 
+        std::vector<std::pair<Point2d, Point2d>> left_lanes;
+        std::vector<std::pair<Point2d, Point2d>> right_lanes;
+        std::pair <Point2d, Point2d> vertices;
+
+        double count_left = 0;
+        double count_right = 0;
+
+        double pt1x_left = 0;
+        double pt2x_left = 0;
+        double pt1y_left = 0;
+        double pt2y_left = 0;
+
+        double pt1x_right = 0;
+        double pt2x_right = 0;
+        double pt1y_right = 0;
+        double pt2y_right = 0;
+
+
         for( size_t i = 0; i < lines.size(); i++ )
         {
             float rho = lines[i][0], theta = lines[i][1];
@@ -335,15 +355,21 @@ int main(int argc, char *argv[]){
             double m;
             double a = cos(theta), b = sin(theta);
             double x0 = a*rho, y0 = b*rho;
-            pt1.x = cvRound(x0 + 200*(-b));
-            pt1.y = cvRound(y0 + 200*(a));
-            pt2.x = cvRound(x0 - 200*(-b));
-            pt2.y = cvRound(y0 - 200*(a));
+            pt1.x = cvRound(x0 + 1500*(-b));
+            pt1.y = cvRound(y0 + 1500*(a));
+            pt2.x = cvRound(x0 - 1500*(-b));
+            pt2.y = cvRound(y0 - 1500*(a));
             m = ((pt2.y-pt1.y)/(pt2.x-pt1.x)); //Slope calculation
-            std::cout<<"Actual m is :"<<m<<std::endl;
-            if ((m > -0.24) && (m < 0.02)){
-                std::cout<<"m is in range -0.24 to +0.02"<<std::endl;
-                continue;
+            
+            if ((m > -0.98) && (m < -0.63)){ //Creation of left lanes set
+                vertices = std::make_pair(pt1, pt2);
+                left_lanes.push_back(vertices);
+                std::cout<<"Negative m is :"<<m<<std::endl;
+            }
+            else if ((m > 0.53) && (m < 0.57)){
+                vertices = std::make_pair(pt1, pt2);
+                right_lanes.push_back(vertices);
+                std::cout<<"Positive m is :"<<m<<std::endl;
             }
             //For positive slopes, append to positive vector
             /*else if (m > 0){ //The positive slopes are always right lanes
@@ -357,12 +383,52 @@ int main(int argc, char *argv[]){
                 std::cout<<"m is negative"<<std::endl;
                 negative_left.push_back(pt1);
                 negative_right.push_back(pt2);*/
-            else{
+            /*else{
                 line(frame, pt1, pt2, Scalar(0,0,255), 3, LINE_AA);
-            }
+            }*/
             }
         //}
 
+        count_left = left_lanes.size();
+        count_right = right_lanes.size();
+
+        typedef std::vector<std::pair<Point2d, Point2d> > lane_points_left;
+        for( lane_points_left::iterator it = left_lanes.begin(); it != left_lanes.end(); ++it )
+        {
+            Point2d V1 = it->first;
+            std::cout<<V1<<std::endl;
+            pt1x_left = pt1x_left + V1.x;
+            pt1y_left = pt1y_left + V1.y;
+
+            Point2d V2 = it->second;
+            std::cout<<V2<<std::endl;
+            pt2x_left = pt2x_left + V2.x;
+            pt2y_left = pt2y_left + V2.y;
+        }
+
+        Point2d pt1_l(pt1x_left/count_left, pt1y_left/count_left);
+        Point2d pt2_l(pt2x_left/count_left, pt2y_left/count_left);
+
+
+        typedef std::vector<std::pair<Point2d, Point2d> > lane_points_right;
+        for( lane_points_right::iterator it = right_lanes.begin(); it != right_lanes.end(); ++it )
+        {
+            Point2d V1 = it->first;
+            std::cout<<V1<<std::endl;
+            pt1x_right = pt1x_right + V1.x;
+            pt1y_right = pt1y_right + V1.y;
+
+            Point2d V2 = it->second;
+            std::cout<<V2<<std::endl;
+            pt2x_right = pt2x_right + V2.x;
+            pt2y_right = pt2y_right + V2.y;
+        }
+
+        Point2d pt1_r(pt1x_right/count_right, pt1y_right/count_right);
+        Point2d pt2_r(pt2x_right/count_right, pt2y_right/count_right);
+
+        line(frame, pt1_l, pt2_l, Scalar(0,0,255), 3, LINE_AA);
+        line(frame, pt1_r, pt2_r, Scalar(0,0,255), 3, LINE_AA);
         //Point2d pt1_left, pt2_left;
         //Draw hough lines for left lane
         /*for (int i = 0; i < positive_left.size(); i++){
