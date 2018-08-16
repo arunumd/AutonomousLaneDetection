@@ -244,6 +244,8 @@ int main(int argc, char *argv[]){
         cv::Mat bw_roi = bwedges.clone();
         cv::Mat hsvedges = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
 
+        //imshow("hsvedges",hsvedges);
+
         Mat cloneimg;
         Canny(yellow_and_white, bwedges, 70, 210, 3);
 
@@ -260,13 +262,15 @@ int main(int argc, char *argv[]){
 
         cv::Mat roi_template(hsvimage.rows, hsvimage.cols, CV_8U, Scalar(0));
         cv::Mat hsv_roi(hsvimage.rows, hsvimage.cols, CV_8U, Scalar(0));
-        vector<Point> pts;
+        std::vector<Point> pts;
         pts.push_back(Point(0, 450));    //top-left
         pts.push_back(Point(1210, 450));    //top-right
         pts.push_back(Point(1210, 684));   //bottom-right
         pts.push_back(Point(0, 684));    //bottom-left
 
         fillConvexPoly(roi_template, pts, cv::Scalar(1));
+
+        cv::Mat lane_marking_roi = roi_template.clone();
 
         //edge_map.copyTo(hsvimage, empty);
         hsvedges.copyTo(hsv_roi,roi_template);
@@ -347,7 +351,7 @@ int main(int argc, char *argv[]){
         double pt1y_right = 0;
         double pt2y_right = 0;
 
-
+        //Making range based slope filtering for left and right lanes
         for( size_t i = 0; i < lines.size(); i++ )
         {
             float rho = lines[i][0], theta = lines[i][1];
@@ -364,12 +368,12 @@ int main(int argc, char *argv[]){
             if ((m > -0.98) && (m < -0.63)){ //Creation of left lanes set
                 vertices = std::make_pair(pt1, pt2);
                 left_lanes.push_back(vertices);
-                std::cout<<"Negative m is :"<<m<<std::endl;
+                //std::cout<<"Negative m is :"<<m<<std::endl;
             }
-            else if ((m > 0.53) && (m < 0.57)){
+            else if ((m > 0.53) && (m < 0.57)){ //Creation of right lanes set
                 vertices = std::make_pair(pt1, pt2);
                 right_lanes.push_back(vertices);
-                std::cout<<"Positive m is :"<<m<<std::endl;
+                //std::cout<<"Positive m is :"<<m<<std::endl;
             }
             //For positive slopes, append to positive vector
             /*else if (m > 0){ //The positive slopes are always right lanes
@@ -389,9 +393,10 @@ int main(int argc, char *argv[]){
             }
         //}
 
-        count_left = left_lanes.size();
-        count_right = right_lanes.size();
+        count_left = left_lanes.size(); //Count of different left lanes from HoughLines
+        count_right = right_lanes.size(); //Count of different right lanes from HoughLines
 
+        //Averaging all left lanes to find a single left lane
         typedef std::vector<std::pair<Point2d, Point2d> > lane_points_left;
         for( lane_points_left::iterator it = left_lanes.begin(); it != left_lanes.end(); ++it )
         {
@@ -409,7 +414,7 @@ int main(int argc, char *argv[]){
         Point2d pt1_l(pt1x_left/count_left, pt1y_left/count_left);
         Point2d pt2_l(pt2x_left/count_left, pt2y_left/count_left);
 
-
+        //Averaging all right lanes to find a single right lane
         typedef std::vector<std::pair<Point2d, Point2d> > lane_points_right;
         for( lane_points_right::iterator it = right_lanes.begin(); it != right_lanes.end(); ++it )
         {
@@ -427,8 +432,70 @@ int main(int argc, char *argv[]){
         Point2d pt1_r(pt1x_right/count_right, pt1y_right/count_right);
         Point2d pt2_r(pt2x_right/count_right, pt2y_right/count_right);
 
-        line(frame, pt1_l, pt2_l, Scalar(0,0,255), 3, LINE_AA);
-        line(frame, pt1_r, pt2_r, Scalar(0,0,255), 3, LINE_AA);
+        cv::Mat black_img = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
+
+        //Drawing left lane
+        line(black_img, pt1_l, pt2_l, Scalar(0,0,255), 3, LINE_AA);
+        //Drawing right lane
+        line(black_img, pt1_r, pt2_r, Scalar(0,0,255), 3, LINE_AA);
+
+        cv::Mat black_layer_lane = cv::Mat::zeros(hsvimage.size(), hsvimage.type());
+        cv::Mat bw_lanes = black_layer_lane.clone(); 
+
+        black_img.copyTo(black_layer_lane, lane_marking_roi); //contents.copyTo(destination, template)
+
+        //imshow("Selected lane area", black_layer_lane);
+
+        Canny(black_layer_lane, bw_lanes, 70, 210, 3);
+
+        cv::Mat nonzeropoints;
+
+        findNonZero(bw_lanes, nonzeropoints);
+
+        double xs = 0;
+        double xh = 5000;
+
+        cv::Point poly_pt1, poly_pt2, poly_pt3, poly_pt4;
+
+        for (int i = 0; i < nonzeropoints.total(); i++ ) {
+        
+        if (nonzeropoints.at<Point>(i).x > xs && nonzeropoints.at<Point>(i).y == 681){
+            poly_pt4.x = nonzeropoints.at<Point>(i).x;
+            poly_pt4.y = nonzeropoints.at<Point>(i).y;
+            xs = poly_pt4.x;
+        }
+        else if (nonzeropoints.at<Point>(i).x < xh && nonzeropoints.at<Point>(i).y == 681){
+            poly_pt1.x = nonzeropoints.at<Point>(i).x;
+            poly_pt1.y = nonzeropoints.at<Point>(i).y;
+            xh = poly_pt1.x;
+        }
+        else if (nonzeropoints.at<Point>(i).x < xh && nonzeropoints.at<Point>(i).y == 470){
+            poly_pt2.x = nonzeropoints.at<Point>(i).x;
+            poly_pt2.y = nonzeropoints.at<Point>(i).y;
+            xh = poly_pt2.x;
+        }
+        else if (nonzeropoints.at<Point>(i).x > xs && nonzeropoints.at<Point>(i).y == 470){
+            poly_pt3.x = nonzeropoints.at<Point>(i).x;
+            poly_pt3.y = nonzeropoints.at<Point>(i).y;
+            xs = poly_pt3.x;
+        }
+        else {}
+    }
+
+        std::vector<Point> poly_pts;
+        poly_pts.push_back(poly_pt2);    //top-left
+        poly_pts.push_back(poly_pt3);    //top-right
+        poly_pts.push_back(poly_pt4);   //bottom-right
+        poly_pts.push_back(poly_pt1);    //bottom-left
+
+        std::cout<<poly_pt1<<" , "<<poly_pt2<<" , "<<poly_pt3<<" , "<<poly_pt4<<std::endl;
+
+        int num_of_poly_pts = 4;
+
+        fillConvexPoly(frame, poly_pts, cv::Scalar(255));
+
+        imshow("Lane marking", hsvimage);
+
         //Point2d pt1_left, pt2_left;
         //Draw hough lines for left lane
         /*for (int i = 0; i < positive_left.size(); i++){
@@ -450,7 +517,7 @@ int main(int argc, char *argv[]){
             }
          */
 
-        imshow("Hough Lines", frame);
+        imshow("Left and right lanes", frame);
         // Press  ESC on keyboard to exit
         char c=(char)waitKey(0);
         if(c==27)
