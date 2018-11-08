@@ -50,13 +50,12 @@ sudo apt-get install cmake
 
 ## Standard install via command-line
 ```
-git clone --recursive https://github.com/arunumd/LaneDetection
-cd <path to repository>
+mkdir Project1
+cd Project1
+git clone -b Final https://github.com/arunumd/lane_detect.git
 mkdir build
 cd build
-cmake ..
-make
-Run tests: ./test/cpp-test
+cmake .. && make
 Run program: ./app/shell-app
 When prompted enter the full path of the input video files (challenge_video.mp4 or project_video.mp4 based on your preference)
 ```
