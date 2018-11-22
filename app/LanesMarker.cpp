@@ -50,7 +50,7 @@ void LanesMarker::lanesSegregator(hType hLines) {
             vertices = std::make_pair(pt1, pt2);
             rLane.push_back(vertices);
         // Creation of left lanes set
-        } else if ((slope >= 0.40) && (slope <= 1.5)) {
+        } else if ((slope >= 0.70) && (slope <= 1.5)) {
             vertices = std::make_pair(pt1, pt2);
             lLane.push_back(vertices);
         }

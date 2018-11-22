@@ -51,3 +51,12 @@ cv::Mat Thresholder::combineLanes() {
     return lanesMask;
 }
 
+void Thresholder::yellowStacker(cv::Scalar yMinNew, cv::Scalar yMaxNew) {
+	cv::inRange(labImage, yMinNew, yMaxNew, yellowStack);
+	cv::bitwise_or(yellowMask, yellowStack, yellowMask);
+}
+
+void Thresholder::whiteStacker(cv::Scalar wMinNew, cv::Scalar wMaxNew) {
+	cv::inRange(labImage, wMinNew, wMaxNew, whiteStack);
+	cv::bitwise_or(whiteMask, whiteStack, whiteMask);
+}

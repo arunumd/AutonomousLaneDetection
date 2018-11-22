@@ -62,6 +62,8 @@ int main(int argc, char *argv[]) {
     cv::Point dummy;
     dummy.x = 0;
     dummy.y = 0;
+    double oldSlopeLeft = 0;
+    double oldSlopeRight = 0;
     int counter = 1;
     for (int i = 0; i < 4; i++) {
         historicLane.push_back(dummy);
@@ -153,19 +155,44 @@ int main(int argc, char *argv[]) {
         *
         ****************************************************************/
 
-        Thresholder lanethresh(cv::Scalar(198, 0, 0), \
-                               cv::Scalar(255, 255, 255), \
-                               cv::Scalar(165, 130, 130), \
-                               cv::Scalar(255, 255, 255));
+        Thresholder lanethresh(cv::Scalar(137, 125, 125), \
+                               cv::Scalar(255, 133, 137), \
+                               cv::Scalar(135, 127, 146), \
+                               cv::Scalar(223, 144, 212));
 
         cv::Mat labOutput;
         labOutput = lanethresh.convertToLab(blurImg);
 
         cv::Mat whiteOutput;
         whiteOutput = lanethresh.whiteMaskFunc();
+        // Included 13 layers of white colors
+        lanethresh.whiteStacker((233,  125,  129), (255,  130,  137));
+        lanethresh.whiteStacker((196,  125,  128), (254,  131,  138));
+        lanethresh.whiteStacker((221,  126,  131), (255,  129,  134));
+        lanethresh.whiteStacker((236,  126,  134), (253,  131,  137));
+        lanethresh.whiteStacker((213,  129,  130), (251,  133,  131));
+        lanethresh.whiteStacker((206,  127,  126), (254,  132,  137));
+        lanethresh.whiteStacker((240,  125,  135), (254,  131,  137));
+        lanethresh.whiteStacker((137,  129,  125), (233,  132,  132));
+        lanethresh.whiteStacker((221,  128,  127), (254,  130,  130));
+        lanethresh.whiteStacker((196,  126,  128), (230,  129,  131));
+        lanethresh.whiteStacker((202,  128,  127), (223,  130,  131));
+        lanethresh.whiteStacker((233,  126,  128), (254,  129,  130));
+        lanethresh.whiteStacker((202,  127,  130), (230,  128,  130));
 
         cv::Mat yellowOutput;
         yellowOutput = lanethresh.yellowMaskFunc();
+        // Include 10 layers of yellow colors
+        lanethresh.yellowStacker((203,  127,  178), (223,  136,  212));
+        lanethresh.yellowStacker((190,  128,  184), (223,  137,  212));
+        lanethresh.yellowStacker((190,  131,  184), (201,  143,  205));
+        lanethresh.yellowStacker((160,  131,  176), (203,  143,  205));
+        lanethresh.yellowStacker((192,  130,  180), (209,  144,  211));
+        lanethresh.yellowStacker((141,  129,  169), (222,  143,  210));
+        lanethresh.yellowStacker((147,  126,  159), (179,  140,  185));
+        lanethresh.yellowStacker((139,  127,  148), (174,  136,  180));
+        lanethresh.yellowStacker((135,  124,  150), (213,  136,  180));
+        lanethresh.yellowStacker((140,  126,  146), (180,  137,  178));
 
         cv::Mat lanesMask;
         lanesMask = lanethresh.combineLanes();
@@ -234,18 +261,58 @@ int main(int argc, char *argv[]) {
         RegionMaker polyMaker;
         auto polyRegionVertices = polyMaker.getPolygonVertices(binaryRegions);
         cv::Mat dummy = cv::Mat::zeros(labOutput.size(), labOutput.type());
+
+        /***
+        *@brief  : Initially we analyse the current slope value. If the slopes
+        *          are zero then we are in first frame. Hence we assign old slope
+        *          as current slope. Whereas, when the difference of old and current
+        *          slopes are greater than 0.5 we assign current slope as old slope.
+        *          This is because successive lanes can have only marginal changes of
+        *          slopes. Very large changes are impossible in reality !
+        *****/
+
+        auto currentSlopeLeft = static_cast<float>(polyRegionVertices.at(0).y - \
+                                polyRegionVertices.at(3).y) /
+                                static_cast<float>(polyRegionVertices.at(0).x - \
+                                        polyRegionVertices.at(3).x);
+
+        auto currentSlopeRight = static_cast<float>(polyRegionVertices.at(1).y - \
+                                 polyRegionVertices.at(2).y) /
+                                 static_cast<float>(polyRegionVertices.at(1).x - \
+                                         polyRegionVertices.at(2).x);
+
+        if (oldSlopeLeft == 0 && oldSlopeRight == 0) {
+            oldSlopeLeft = currentSlopeLeft;
+            oldSlopeRight = currentSlopeRight;
+        } else if (std::abs(oldSlopeLeft - currentSlopeLeft) > 0.5) {
+            currentSlopeLeft = oldSlopeLeft;
+        } else if (std::abs(oldSlopeRight - currentSlopeRight) > 0.5) {
+            currentSlopeRight = oldSlopeRight;
+        } else {}
+
         int index = 0;
         for (auto& vertex : polyRegionVertices) {
-            if (vertex.x == 0 || vertex.y == 0) {
+            if (vertex.y == 0 || vertex.x == 0) {
                 polyRegionVertices[index].x = historicLane[index].x;
                 polyRegionVertices[index].y = historicLane[index].y;
             } else {}
+            index++;
         }
-        if (counter > 1 && ((std::abs(polyRegionVertices.at(2).x - \
-                                      historicLane.at(2).x) > 15) ||
-                            std::abs(polyRegionVertices.at(3).x - \
-                                     historicLane.at(3).x) > 15)) {
-            polyRegionVertices = historicLane;
+
+        if (counter > 1) {
+            for (int i = 0; i < 4; i++) {
+                if (historicLane.at(i).y == 0 && historicLane.at(i).x == 0) {
+                    historicLane.at(i).x = polyRegionVertices.at(i).x;
+                    historicLane.at(i).y = polyRegionVertices.at(i).y;
+                }
+                if ((std::abs(polyRegionVertices.at(i).x - \
+                              historicLane.at(i).x) > 15) && (((std::abs(oldSlopeLeft \
+                                      - currentSlopeLeft) > 0.3) || (std::abs(oldSlopeRight - \
+                                              currentSlopeRight) > 0.3)))) {
+                    polyRegionVertices.at(i).x = historicLane.at(i).x;
+                    polyRegionVertices.at(i).y = historicLane.at(i).y;
+                }
+            }
         }
 
         historicLane = polyRegionVertices;
@@ -255,7 +322,7 @@ int main(int argc, char *argv[]) {
         *  Now we extrapolate our polygon to fill a desired area on screen
         *
         *********************************************************************/
-
+/*
         auto newSlopeLeft = static_cast<float>(polyRegionVertices.at(0).y - \
                                                polyRegionVertices.at(3).y) /
                             static_cast<float>(polyRegionVertices.at(0).x - \
@@ -264,33 +331,33 @@ int main(int argc, char *argv[]) {
         auto newSlopeRight = static_cast<float>(polyRegionVertices.at(1).y - \
                                                 polyRegionVertices.at(2).y) /
                              static_cast<float>(polyRegionVertices.at(1).x - \
-                                                polyRegionVertices.at(2).x);
+                                                polyRegionVertices.at(2).x);*/
 
         auto leftIntercept = static_cast<float>(polyRegionVertices.at(0).y) - \
-                             static_cast<float>(newSlopeLeft) * \
+                             static_cast<float>(currentSlopeLeft) * \
                              static_cast<float>(polyRegionVertices.at(0).x);
 
         auto rightIntercept = static_cast<float>(polyRegionVertices.at(1).y) - \
-                              (static_cast<float>(newSlopeRight) * \
+                              (static_cast<float>(currentSlopeRight) * \
                                static_cast<float>(polyRegionVertices.at(1).x));
 
         polyRegionVertices.at(0).x = static_cast<double>((550 - \
-                                     leftIntercept) / newSlopeLeft);
+                                     leftIntercept) / currentSlopeLeft);
         polyRegionVertices.at(0).y = 550.0;
         polyRegionVertices.at(1).x = static_cast<double>((550 - \
-                                     rightIntercept) / newSlopeRight);
+                                     rightIntercept) / currentSlopeRight);
         polyRegionVertices.at(1).y = 550.0;
 
         cv::fillConvexPoly(frame, polyRegionVertices, \
                            cv::Scalar(0, 255, 0), CV_AA, 0);
 
-        double deviationLeft = std::abs(std::abs(newSlopeLeft) - 1);
+        double deviationLeft = std::abs(std::abs(currentSlopeLeft) - 1);
 
-        double deviationRight = std::abs(std::abs(newSlopeRight) - 1);
+        double deviationRight = std::abs(std::abs(currentSlopeRight) - 1);
 
         double diffInDeviation = std::abs(deviationLeft - deviationRight);
 
-        /*********************************************************************
+        /********************************************************************
         *
         *                   At the end we make turn predictions
         *

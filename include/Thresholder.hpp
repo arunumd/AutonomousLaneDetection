@@ -79,6 +79,14 @@ class Thresholder {
     *******/
     cv::Mat combineLanes();
 
+    /****
+    *@brief  : The yellowStacker() simply layers up different yellow colors
+    *          for getting a reliable yellow lane
+    ******/
+    void yellowStacker(cv::Scalar yMinNew, cv::Scalar yMaxNew);
+
+    void whiteStacker(cv::Scalar wMinNew, cv::Scalar wMaxNew);
+
  private:
     cv::Mat inputImg;   // < Container used for storing input image
     const cv::Scalar whiteMin;   // < Minimum threshold for white lane
@@ -89,4 +97,6 @@ class Thresholder {
     cv::Mat yellowMask;   // < Container for yellow lanes
     cv::Mat lanesMask;   // < Container for all lanes combined
     cv::Mat labImage;   // < Container for LAB converted input image
+    cv::Mat yellowStack;
+    cv::Mat whiteStack;
 };

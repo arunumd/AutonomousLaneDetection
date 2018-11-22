@@ -30,22 +30,22 @@
 std::vector<cv::Point> RegionMaker::getPolygonVertices(cv::Mat binaryPoints) {
     for (size_t i = 0; i < binaryPoints.total(); i++) {
         if (binaryPoints.at<cv::Point>(i).x > low \
-                && binaryPoints.at<cv::Point>(i).y == 704) {
+                && binaryPoints.at<cv::Point>(i).y == 685) {
             polyVertex4.x = binaryPoints.at<cv::Point>(i).x;
             polyVertex4.y = binaryPoints.at<cv::Point>(i).y;
             low = polyVertex4.x;
         } else if (binaryPoints.at<cv::Point>(i).x < high \
-                   && binaryPoints.at<cv::Point>(i).y == 704) {
+                   && binaryPoints.at<cv::Point>(i).y == 685) {
             polyVertex1.x = binaryPoints.at<cv::Point>(i).x;
             polyVertex1.y = binaryPoints.at<cv::Point>(i).y;
             high = polyVertex1.x;
         } else if (binaryPoints.at<cv::Point>(i).x < high \
-                   && binaryPoints.at<cv::Point>(i).y == 650) {
+                   && binaryPoints.at<cv::Point>(i).y == 500) {
             polyVertex2.x = binaryPoints.at<cv::Point>(i).x;
             polyVertex2.y = binaryPoints.at<cv::Point>(i).y;
             high = polyVertex2.x;
         } else if (binaryPoints.at<cv::Point>(i).x > low \
-                   && binaryPoints.at<cv::Point>(i).y == 650) {
+                   && binaryPoints.at<cv::Point>(i).y == 500) {
             polyVertex3.x = binaryPoints.at<cv::Point>(i).x;
             polyVertex3.y = binaryPoints.at<cv::Point>(i).y;
             low = polyVertex3.x;
